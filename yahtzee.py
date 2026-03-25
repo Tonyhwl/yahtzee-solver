@@ -29,22 +29,32 @@ def score_roll(dice):
     return max(scores)
 
 @lru_cache(maxsize=None)
-def V(dice, rolls_left):
+def V(dice, rolls_left, available):
+    """
+    Full scorecard-aware MDP.
+    State: (sorted dice, rolls remaining, frozenset of available categories)
+    Returns: (expected_value, best_reroll_mask_or_None, best_category_if_scoring_now)
+    """
     dice = tuple(sorted(dice))
-    score, category = score_roll(dice)
+
+    # must score — pick best available category
+    best_cat = max(available, key=lambda c: calculate_score(c, dice))
+    best_ev  = calculate_score(best_cat, dice)
+    best_mask = None  # None means "stop rolling, score now"
+
     if rolls_left == 0:
-        return score, None, category
+        return best_ev, None, best_cat
 
-    best_ev = float('-inf')
-    best_mask = None
-
+    # try all reroll patterns
     for mask in KEEP_MASKS:
         reroll_count = mask.count(False)
-        possible_outcomes = itertools.product(range(1, 7), repeat=reroll_count)
-        total_ev = 0
+        if reroll_count == 0:
+            continue  # same as stopping
+
+        total_ev     = 0
         total_outcomes = 6 ** reroll_count
 
-        for reroll in possible_outcomes:
+        for reroll in itertools.product(range(1, 7), repeat=reroll_count):
             new_dice = []
             i = 0
             for keep, val in zip(mask, dice):
@@ -53,16 +63,41 @@ def V(dice, rolls_left):
                 else:
                     new_dice.append(reroll[i])
                     i += 1
-            new_dice = tuple(sorted(new_dice))
-            ev, _, _ = V(new_dice, rolls_left - 1)
+            ev, _, _ = V(tuple(sorted(new_dice)), rolls_left - 1, available)
             total_ev += ev
 
-        avg_ev = total_ev / total_outcomes if total_outcomes > 0 else 0
+        avg_ev = total_ev / total_outcomes
         if avg_ev > best_ev:
-            best_ev = avg_ev
+            best_ev   = avg_ev
             best_mask = mask
 
-    return best_ev, best_mask, category
+    return best_ev, best_mask, best_cat
+
+def calculate_score(category, dice_values):
+    """Module-level scoring used by the MDP solver."""
+    counts = Counter(dice_values)
+    UPPER = ['Ones','Twos','Threes','Fours','Fives','Sixes']
+    if category in UPPER:
+        n = UPPER.index(category) + 1
+        return counts[n] * n
+    elif category == 'Three of a Kind':
+        return sum(dice_values) if max(counts.values()) >= 3 else 0
+    elif category == 'Four of a Kind':
+        return sum(dice_values) if max(counts.values()) >= 4 else 0
+    elif category == 'Full House':
+        return 25 if sorted(counts.values()) == [2, 3] else 0
+    elif category == 'Small Straight':
+        u = set(dice_values)
+        return 30 if any(s <= u for s in [{1,2,3,4},{2,3,4,5},{3,4,5,6}]) else 0
+    elif category == 'Large Straight':
+        u = set(dice_values)
+        return 40 if any(s <= u for s in [{1,2,3,4,5},{2,3,4,5,6}]) else 0
+    elif category == 'Yahtzee':
+        return 50 if max(counts.values()) == 5 else 0
+    elif category == 'Chance':
+        return sum(dice_values)
+    return 0
+
 
 class Dice:
     def __init__(self):
@@ -196,38 +231,31 @@ class GreedyBot(Player):
 
 class OptimalBot(Player):
     def choose_reroll(self, dice_values, rolls_left):
-        # ask the MDP solver using sorted dice (as V() expects)
-        _, best_mask, _ = V(tuple(sorted(dice_values)), rolls_left)
+        available = frozenset(self.scorecard.available_categories())
+        _, best_mask, _ = V(tuple(sorted(dice_values)), rolls_left, available)
 
         if best_mask is None:
-            return []  # no rerolls needed
+            return []  # MDP says stop rolling
 
-        # best_mask is aligned to SORTED dice
-        # build a list of values to KEEP (with duplicates handled correctly)
-        sorted_dice = sorted(dice_values)
+        # best_mask is aligned to SORTED dice — map back to original indices
+        sorted_dice    = sorted(dice_values)
         values_to_keep = [val for val, keep in zip(sorted_dice, best_mask) if keep]
 
-        # map kept values back to original indices 
         reroll_indices = []
         keep_pool = list(values_to_keep)
         for i, val in enumerate(dice_values):
             if val in keep_pool:
-                keep_pool.remove(val)  
+                keep_pool.remove(val)
             else:
                 reroll_indices.append(i)
 
         return reroll_indices
 
     def choose_category(self, dice_values, available):
-        # score each available category and pick the best
-        best_category = None
-        best_score = -1
-        for category in available:
-            score = self.scorecard.calculate_score(category, dice_values)
-            if score > best_score:
-                best_score = score
-                best_category = category
-        return best_category
+        # MDP already computed the best category when rolls_left=0
+        available_fs = frozenset(available)
+        _, _, best_cat = V(tuple(sorted(dice_values)), 0, available_fs)
+        return best_cat
 
 class YahtzeeGame:
     def __init__(self, player1, player2):
