@@ -1,4 +1,4 @@
-# Yahtzee MDP Solver
+# Yahtzee Markov Decision Process Solver
 
 Optimal single-turn reroll policy via backward induction over all 252 sorted dice states.
 Benchmarked against a greedy baseline over 100k simulated games.
@@ -9,8 +9,13 @@ Benchmarked against a greedy baseline over 100k simulated games.
 
 ## Files
 - `solver.py` — MDP solver, computes expected value for every (dice, rolls_left) state
-- `yahtzee.py` — game engine, bots (optimal, greedy, random), and benchmark runner
+- `yahtzee.py` — game engine, bots (optimal, greedy, random) and benchmark runner
 
 ## Usage
 - Download both python files
 - Run `yahtzee.py`
+- First game plays out, then simulation of 100k games
+
+## Notes
+- First game will be much slower than subsequent runs due to MDP cache warming up
+- Total runtime might be long depending on machine (reduce to 10k runs if needed)
