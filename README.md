@@ -12,11 +12,10 @@ Benchmarked against a greedy baseline over 100k simulated games.
 - Total runtime might be long depending on machine (reduce to 10k runs if needed)
 
 ## Files
-- `solver.py` — MDP solver, computes expected value for every (dice, rolls_left) state
 - `yahtzee.py` — game engine, bots (optimal, greedy, random) and benchmark runner
 
 ## Usage
-- Download both python files
+- Download file
 - Run `yahtzee.py`
 - First game plays out, then simulation of 100k games
 
