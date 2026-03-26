@@ -9,6 +9,7 @@ from functools import lru_cache
 
 KEEP_MASKS = list(itertools.product([True, False], repeat=5))
 
+# define scores
 def score_roll(dice):
     counts = Counter(dice)
     values = list(counts.values())
@@ -28,19 +29,16 @@ def score_roll(dice):
         scores.append((50, 'Yahtzee'))
     return max(scores)
 
+# setup MDP
 @lru_cache(maxsize=None)
 def V(dice, rolls_left, available):
-    """
-    Full scorecard-aware MDP.
-    State: (sorted dice, rolls remaining, frozenset of available categories)
-    Returns: (expected_value, best_reroll_mask_or_None, best_category_if_scoring_now)
-    """
+
     dice = tuple(sorted(dice))
 
-    # must score — pick best available category
+    # pick best available category
     best_cat = max(available, key=lambda c: calculate_score(c, dice))
     best_ev  = calculate_score(best_cat, dice)
-    best_mask = None  # None means "stop rolling, score now"
+    best_mask = None  
 
     if rolls_left == 0:
         return best_ev, None, best_cat
@@ -49,7 +47,7 @@ def V(dice, rolls_left, available):
     for mask in KEEP_MASKS:
         reroll_count = mask.count(False)
         if reroll_count == 0:
-            continue  # same as stopping
+            continue  
 
         total_ev     = 0
         total_outcomes = 6 ** reroll_count
@@ -73,6 +71,7 @@ def V(dice, rolls_left, available):
 
     return best_ev, best_mask, best_cat
 
+# calculating scores
 def calculate_score(category, dice_values):
     """Module-level scoring used by the MDP solver."""
     counts = Counter(dice_values)
@@ -98,7 +97,7 @@ def calculate_score(category, dice_values):
         return sum(dice_values)
     return 0
 
-
+# define classes
 class Dice:
     def __init__(self):
         self.value = random.randint(1, 6)
@@ -364,7 +363,7 @@ class Benchmark:
         plt.savefig('yahtzee_benchmark.png', dpi=150)
         print(f"\n  Chart saved to yahtzee_benchmark.png")
 
-
+# run
 if __name__ == '__main__':
     print("Note: First run may be slow while MDP cache warms up.\n")
 
