@@ -1,7 +1,7 @@
 # Yahtzee Markov Decision Process Solver
 
 Optimal single-turn reroll policy via backward induction over all 252 sorted dice states.
-Benchmarked against a greedy baseline over 100k simulated games.
+Benchmarked against a greedy baseline over 10k simulated games.
 
 ## Results
 - Optimal bot wins 60.3% of games vs greedy
@@ -9,7 +9,6 @@ Benchmarked against a greedy baseline over 100k simulated games.
 
 ## Notes
 - First game will be much slower than subsequent runs due to MDP cache warming up
-- Total runtime might be long depending on machine (reduce to 10k runs if needed)
 
 ## Files
 - `yahtzee.py` — game engine, bots (optimal, greedy, random) and benchmark runner
@@ -17,5 +16,5 @@ Benchmarked against a greedy baseline over 100k simulated games.
 ## Usage
 - Download file
 - Run `yahtzee.py`
-- First game plays out, then simulation of 100k games
+- First game plays out, then simulation of 10k games
 
